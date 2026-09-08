@@ -1,0 +1,24 @@
+{
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "name": "big",
+  "targets": {
+    "build-under": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "cwd": "{projectRoot}",
+        "command": "rm -rf dist && mkdir dist && truncate -s 1900M dist/under.bin && ls -l dist"
+      }
+    },
+    "build-over": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "outputs": ["{projectRoot}/dist"],
+      "options": {
+        "cwd": "{projectRoot}",
+        "command": "rm -rf dist && mkdir dist && truncate -s 2200M dist/over.bin && ls -l dist"
+      }
+    }
+  }
+}

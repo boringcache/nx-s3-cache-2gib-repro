@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.nx/
+.s3rver/
+repro.log
+s3rver.log
