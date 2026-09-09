@@ -1,0 +1,132 @@
+name: BoringCache large-output validation
+on:
+  push:
+    branches: [boringcache-validation]
+    paths: [.github/workflows/boringcache-validation.yml]
+  workflow_dispatch:
+    inputs:
+      cli_version:
+        description: Optional exact CLI release override
+        type: string
+        default: ""
+permissions:
+  contents: read
+concurrency:
+  group: nx-large-output-validation
+  cancel-in-progress: false
+env:
+  NX_DAEMON: 'false'
+  NX_ISOLATE_PLUGINS: 'false'
+  NX_VERBOSE_LOGGING: 'true'
+  NX_TASKS_RUNNER_DYNAMIC_OUTPUT: 'false'
+jobs:
+  cold:
+    name: Cold producer
+    if: github.repository == 'boringcache/nx-s3-cache-2gib-repro' && github.ref == 'refs/heads/boringcache-validation'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      VALIDATION_cold: cold
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22.20.0
+          package-manager-cache: false
+      - run: npm install --global pnpm@10.33.2
+      - name: Install GNU truncate on macOS
+        if: runner.os == 'macOS'
+        run: |
+          brew install coreutils
+          echo "$(brew --prefix coreutils)/libexec/gnubin" >> "$GITHUB_PATH"
+      - run: pnpm install --frozen-lockfile
+      - name: Isolate this cold seed
+        run: sed -i.bak "s/september-9/september-9-$GITHUB_RUN_ID/" .boringcache.toml
+      - name: Configure native Nx cache
+        id: cache
+        uses: boringcache/one@90111526eb218a7f1e119ac2b29f765bd4d82734 # v1.21.0
+        with:
+          mode: nx
+          cli-version: ${{ inputs.cli_version }}
+          trust-policy: publish
+          fail-on-cache-error: true
+      - name: Build and verify both file sizes
+        run: bash .github/boringcache-build.sh
+
+      - name: Retain file hashes and native cache evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: nx-cold-${{ matrix.os }}
+          path: |
+            ${{ runner.temp }}/validation
+            ${{ steps.cache.outputs.evidence-path }}
+          retention-days: 14
+  warm:
+    needs: cold
+    if: github.repository == 'boringcache/nx-s3-cache-2gib-repro' && github.ref == 'refs/heads/boringcache-validation'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      VALIDATION_warm: warm
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22.20.0
+          package-manager-cache: false
+      - run: npm install --global pnpm@10.33.2
+      - name: Install GNU truncate on macOS
+        if: runner.os == 'macOS'
+        run: |
+          brew install coreutils
+          echo "$(brew --prefix coreutils)/libexec/gnubin" >> "$GITHUB_PATH"
+      - run: pnpm install --frozen-lockfile
+      - name: Isolate this cold seed
+        run: sed -i.bak "s/september-9/september-9-$GITHUB_RUN_ID/" .boringcache.toml
+      - name: Configure native Nx cache
+        id: cache
+        uses: boringcache/one@90111526eb218a7f1e119ac2b29f765bd4d82734 # v1.21.0
+        with:
+          mode: nx
+          cli-version: ${{ inputs.cli_version }}
+          trust-policy: restore
+          fail-on-cache-error: true
+      - name: Build and verify both file sizes
+        run: bash .github/boringcache-build.sh
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: nx-cold-${{ matrix.os }}
+          path: ${{ runner.temp }}/cold
+      - name: Compare restored bytes with the cold producer
+        run: |
+          diff "$RUNNER_TEMP/cold/validation/sha256.txt" "$RUNNER_TEMP/validation/sha256.txt"
+          diff "$RUNNER_TEMP/cold/validation/sizes.txt" "$RUNNER_TEMP/validation/sizes.txt"
+
+      - name: Retain file hashes and native cache evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: nx-warm-${{ matrix.os }}
+          path: |
+            ${{ runner.temp }}/validation
+            ${{ steps.cache.outputs.evidence-path }}
+          retention-days: 14

@@ -1,13 +1,3 @@
 {
-  "$schema": "./node_modules/nx/schemas/nx-schema.json",
-  "s3": {
-    "region": "us-east-1",
-    "bucket": "nx-cache",
-    "endpoint": "http://localhost:4568",
-    "forcePathStyle": true,
-    "disableChecksum": true,
-    "cacheKeyPrefix": "nx-cache",
-    "localMode": "read-write",
-    "ciMode": "read-write"
-  }
+  "$schema": "./node_modules/nx/schemas/nx-schema.json"
 }

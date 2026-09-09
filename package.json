@@ -8,11 +8,12 @@
     "repro": "bash ./repro.sh"
   },
   "devDependencies": {
-    "@nx/s3-cache": "5.0.2",
     "nx": "22.6.3",
     "s3rver": "3.7.1"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["nx"]
+    "onlyBuiltDependencies": [
+      "nx"
+    ]
   }
 }

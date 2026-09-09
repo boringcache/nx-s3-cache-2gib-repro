@@ -1,1 +1,6 @@
 workspace = "boringcache/benchmarks"
+
+[adapters.nx]
+tag = "nx-large-output-september-9"
+command = ["bash", ".github/boringcache-build.sh"]
+fail-on-cache-error = true
