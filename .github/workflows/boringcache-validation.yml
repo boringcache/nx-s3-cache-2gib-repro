@@ -33,7 +33,7 @@ jobs:
       contents: read
       id-token: write
     env:
-      VALIDATION_cold: cold
+      VALIDATION_PHASE: cold
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -62,14 +62,20 @@ jobs:
       - name: Build and verify both file sizes
         run: bash .github/boringcache-build.sh
 
+      - name: Retain native cache evidence
+        if: always()
+        env:
+          EVIDENCE_PATH: ${{ steps.cache.outputs.evidence-path }}
+        run: |
+          if [[ -f "$EVIDENCE_PATH" ]]; then
+            cp "$EVIDENCE_PATH" "$RUNNER_TEMP/validation/cache-evidence.json"
+          fi
       - name: Retain file hashes and native cache evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: nx-cold-${{ matrix.os }}
-          path: |
-            ${{ runner.temp }}/validation
-            ${{ steps.cache.outputs.evidence-path }}
+          path: ${{ runner.temp }}/validation
           retention-days: 14
   warm:
     needs: cold
@@ -84,7 +90,7 @@ jobs:
       contents: read
       id-token: write
     env:
-      VALIDATION_warm: warm
+      VALIDATION_PHASE: warm
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -118,15 +124,21 @@ jobs:
           path: ${{ runner.temp }}/cold
       - name: Compare restored bytes with the cold producer
         run: |
-          diff "$RUNNER_TEMP/cold/validation/sha256.txt" "$RUNNER_TEMP/validation/sha256.txt"
-          diff "$RUNNER_TEMP/cold/validation/sizes.txt" "$RUNNER_TEMP/validation/sizes.txt"
+          diff "$RUNNER_TEMP/cold/sha256.txt" "$RUNNER_TEMP/validation/sha256.txt"
+          diff "$RUNNER_TEMP/cold/sizes.txt" "$RUNNER_TEMP/validation/sizes.txt"
 
+      - name: Retain native cache evidence
+        if: always()
+        env:
+          EVIDENCE_PATH: ${{ steps.cache.outputs.evidence-path }}
+        run: |
+          if [[ -f "$EVIDENCE_PATH" ]]; then
+            cp "$EVIDENCE_PATH" "$RUNNER_TEMP/validation/cache-evidence.json"
+          fi
       - name: Retain file hashes and native cache evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: nx-warm-${{ matrix.os }}
-          path: |
-            ${{ runner.temp }}/validation
-            ${{ steps.cache.outputs.evidence-path }}
+          path: ${{ runner.temp }}/validation
           retention-days: 14
