@@ -9,7 +9,7 @@
   },
   "devDependencies": {
     "@nx/s3-cache": "5.0.2",
-    "nx": "22.6.3",
+    "nx": "22.7.7",
     "s3rver": "3.7.1"
   },
   "pnpm": {
