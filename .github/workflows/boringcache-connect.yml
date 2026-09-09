@@ -1,0 +1,22 @@
+name: Connect BoringCache
+on:
+  push:
+    branches: [boringcache-validation]
+    paths: [.github/workflows/boringcache-connect.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  connect:
+    if: github.repository == 'boringcache/nx-s3-cache-2gib-repro' && github.ref == 'refs/heads/boringcache-validation'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Install the released CLI for enrollment
+        run: curl -fsSL https://install.boringcache.com/install.sh | sh
+      - name: Connect through GitHub OIDC
+        run: boringcache ci connect --oidc-provider github-actions
+
