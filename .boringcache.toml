@@ -1,6 +1,7 @@
 workspace = "boringcache/benchmarks"
 
 [adapters.nx]
-tag = "nx-large-output-september-9"
+tag = "nx-large-output-v131-september-22"
 command = ["bash", ".github/boringcache-build.sh"]
+metadata-hints = ["project=nx-s3-cache-2gib-repro", "issue=36943", "series=v131-20260922"]
 fail-on-cache-error = true

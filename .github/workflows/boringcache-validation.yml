@@ -2,13 +2,11 @@ name: BoringCache large-output validation
 on:
   push:
     branches: [boringcache-validation]
-    paths: [.github/workflows/boringcache-validation.yml]
+    paths:
+      - .boringcache.toml
+      - .github/boringcache-build.sh
+      - .github/workflows/boringcache-validation.yml
   workflow_dispatch:
-    inputs:
-      cli_version:
-        description: Optional exact CLI release override
-        type: string
-        default: ""
 permissions:
   contents: read
 concurrency:
@@ -50,17 +48,31 @@ jobs:
           echo "$(brew --prefix coreutils)/libexec/gnubin" >> "$GITHUB_PATH"
       - run: pnpm install --frozen-lockfile
       - name: Isolate this cold seed
-        run: sed -i.bak "s/september-9/september-9-$GITHUB_RUN_ID/" .boringcache.toml
+        run: sed -i.bak "s/v131-september-22/v131-september-22-$GITHUB_RUN_ID/" .boringcache.toml
       - name: Configure native Nx cache
         id: cache
-        uses: boringcache/one@a610ec5a564efd9b360925056dbade04deb5def6 # v1.30.0
+        uses: boringcache/one@9ca311f9b247835b3cc87639321c79bac8018145 # v1.31.0
         with:
           mode: nx
-          cli-version: ${{ inputs.cli_version }}
           trust-policy: publish
+          diagnostics: summary
           fail-on-cache-error: true
       - name: Build and verify both file sizes
         run: bash .github/boringcache-build.sh
+
+      - name: Record cache measurements
+        if: always()
+        env:
+          CACHE_HIT: ${{ steps.cache.outputs.cache-hit }}
+          RESTORE_DURATION_SECONDS: ${{ steps.cache.outputs.restore-duration-seconds }}
+          RESTORE_TRANSFERRED_BYTES: ${{ steps.cache.outputs.restore-transferred-bytes }}
+        run: |
+          {
+            printf 'cache_hit=%s\n' "$CACHE_HIT"
+            printf 'restore_duration_seconds=%s\n' "$RESTORE_DURATION_SECONDS"
+            printf 'restore_transferred_bytes=%s\n' "$RESTORE_TRANSFERRED_BYTES"
+            du -sk .nx/cache 2>/dev/null || true
+          } | tee "$RUNNER_TEMP/validation/cache-measurements.txt"
 
       - name: Retain native cache evidence
         if: always()
@@ -107,17 +119,31 @@ jobs:
           echo "$(brew --prefix coreutils)/libexec/gnubin" >> "$GITHUB_PATH"
       - run: pnpm install --frozen-lockfile
       - name: Isolate this cold seed
-        run: sed -i.bak "s/september-9/september-9-$GITHUB_RUN_ID/" .boringcache.toml
+        run: sed -i.bak "s/v131-september-22/v131-september-22-$GITHUB_RUN_ID/" .boringcache.toml
       - name: Configure native Nx cache
         id: cache
-        uses: boringcache/one@a610ec5a564efd9b360925056dbade04deb5def6 # v1.30.0
+        uses: boringcache/one@9ca311f9b247835b3cc87639321c79bac8018145 # v1.31.0
         with:
           mode: nx
-          cli-version: ${{ inputs.cli_version }}
           trust-policy: restore
+          diagnostics: summary
           fail-on-cache-error: true
       - name: Build and verify both file sizes
         run: bash .github/boringcache-build.sh
+
+      - name: Record cache measurements
+        if: always()
+        env:
+          CACHE_HIT: ${{ steps.cache.outputs.cache-hit }}
+          RESTORE_DURATION_SECONDS: ${{ steps.cache.outputs.restore-duration-seconds }}
+          RESTORE_TRANSFERRED_BYTES: ${{ steps.cache.outputs.restore-transferred-bytes }}
+        run: |
+          {
+            printf 'cache_hit=%s\n' "$CACHE_HIT"
+            printf 'restore_duration_seconds=%s\n' "$RESTORE_DURATION_SECONDS"
+            printf 'restore_transferred_bytes=%s\n' "$RESTORE_TRANSFERRED_BYTES"
+            du -sk .nx/cache 2>/dev/null || true
+          } | tee "$RUNNER_TEMP/validation/cache-measurements.txt"
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: nx-cold-${{ matrix.os }}
